@@ -630,12 +630,12 @@ header h1 {
     gap: 8px;
 }
 
-/* Task completion checkbox - smaller */
+/* Task completion checkbox - large / made double the size*/
 .task-checkbox {
-    width: 16px;
-    height: 16px;
+    width: 32px;
+    height: 32px;
     cursor: pointer;
-    margin-top: 2px;
+    margin-top: 8px;
     accent-color: var(--primary);
     transition: var(--transition);
     flex-shrink: 0;
