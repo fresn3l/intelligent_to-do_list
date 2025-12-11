@@ -1,3 +1,9 @@
-eel==0.16.0
-setuptools
+# Core application dependencies
+eel==0.16.0              # Desktop app framework (Python <-> JavaScript bridge)
+
+# Required for Eel to work properly
+setuptools                # Provides pkg_resources (required by Eel)
+
+# Build/packaging dependencies (optional - only needed for building .app)
+pyinstaller              # Creates standalone Mac/Windows/Linux executables
 

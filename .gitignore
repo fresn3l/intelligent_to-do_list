@@ -11,6 +11,18 @@ ENV/
 
 # Application data
 tasks.json
+goals.json
+categories.json
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec
+*.app
+
+# Icon files (keep source PNG, ignore generated files)
+app_icon.iconset/
+*.icns
 
 # IDE
 .vscode/

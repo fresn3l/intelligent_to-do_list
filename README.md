@@ -1,6 +1,15 @@
-# Intelligent To-Do List
+# ToDo
 
-A beautiful desktop application for managing your tasks, built with Python (Eel) and modern web technologies.
+A beautiful desktop application for managing your tasks and goals, built with Python (Eel) and modern web technologies.
+
+## 📚 Learning Resources
+
+This repository includes comprehensive educational documentation:
+
+- **[LEARNING_GUIDE.md](LEARNING_GUIDE.md)**: Complete tutorial teaching you how to code through this project
+- **[CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md)**: Line-by-line code explanations for every file
+
+Perfect for beginners learning Python, JavaScript, HTML, CSS, and desktop app development!
 
 ## Features
 
@@ -47,10 +56,32 @@ pip install -r requirements.txt
 
 ## Usage
 
+### Development Mode
+
 Run the application:
 ```bash
 python main.py
 ```
+
+### Building a Standalone Mac App
+
+To create a standalone Mac application that doesn't require Python:
+
+1. **Install PyInstaller**:
+```bash
+pip install pyinstaller
+```
+
+2. **Build the app**:
+```bash
+python build_app.py
+```
+
+3. **Find your app**:
+   - Location: `dist/IntelligentToDoList/IntelligentToDoList.app`
+   - Double-click to run!
+
+For detailed packaging instructions, see [PACKAGING_GUIDE.md](PACKAGING_GUIDE.md).
 
 The application will open in a desktop window where you can:
 - Add new tasks with title, description, priority, due date, and category
