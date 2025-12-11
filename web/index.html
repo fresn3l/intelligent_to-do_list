@@ -4,7 +4,7 @@
     <!-- Document metadata and configuration -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intelligent To-Do List</title>
+    <title>ToDo</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,13 +14,13 @@
         <!-- Header section - contains app title and tab navigation -->
         <header>
             <!-- App title/logo -->
-            <h1>✓ To-Do List</h1>
+            <h1>✓ ToDo</h1>
             
             <!-- Tab navigation buttons - switch between Tasks and Goals views -->
             <div class="tabs">
                 <button class="tab-button active" data-tab="tasks">Tasks</button>
                 <button class="tab-button" data-tab="goals">Goals</button>
-                <button class="tab-button" data-tab="analytics">Categories</button>
+                <button class="tab-button" data-tab="analytics">Analytics</button>
             </div>
         </header>
 
@@ -56,8 +56,16 @@
                 <button id="showCompleted" class="btn-toggle">Show Completed</button>
             </div>
 
-            <!-- Task creation form section -->
-            <div class="task-form">
+            <!-- Button to show/hide task form -->
+            <div class="add-task-button-container">
+                <button id="toggleTaskForm" class="btn-primary btn-add-task">
+                    <span class="btn-icon">+</span>
+                    Add New Task
+                </button>
+            </div>
+
+            <!-- Task creation form section - hidden by default -->
+            <div class="task-form" id="taskFormContainer" style="display: none;">
                 <h2>Add New Task</h2>
                 <form id="taskForm">
                     <!-- Task title input - required field -->

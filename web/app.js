@@ -113,6 +113,19 @@ function setupEventListeners() {
     // Task form submission
     document.getElementById('taskForm').addEventListener('submit', handleAddTask);
     
+    // Toggle task form visibility
+    const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
+    const taskFormContainer = document.getElementById('taskFormContainer');
+    if (toggleTaskFormBtn && taskFormContainer) {
+        toggleTaskFormBtn.addEventListener('click', () => {
+            const isVisible = taskFormContainer.style.display !== 'none';
+            taskFormContainer.style.display = isVisible ? 'none' : 'block';
+            toggleTaskFormBtn.innerHTML = isVisible 
+                ? '<span class="btn-icon">+</span> Add New Task'
+                : '<span class="btn-icon">−</span> Cancel';
+        });
+    }
+    
     // Goal form submission
     document.getElementById('goalForm').addEventListener('submit', handleAddGoal);
     
@@ -176,7 +189,6 @@ async function handleAddTask(e) {
     const categorySelect = document.getElementById('taskCategory');
     const newCategoryInput = document.getElementById('newCategoryInput');
     const goalSelect = document.getElementById('taskGoal');
-    const submitButton = e.target.querySelector('button[type="submit"]');
     
     let category = '';
     if (newCategoryInput.style.display !== 'none' && newCategoryInput.value.trim()) {
@@ -190,9 +202,26 @@ async function handleAddTask(e) {
     
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     
-    if (!title) return;
+    if (!title) {
+        showErrorFeedback('Please enter a task title');
+        return;
+    }
     
-    // Add loading state to button
+    // Add loading state to button - find submit button correctly
+    const form = document.getElementById('taskForm');
+    if (!form) {
+        console.error('Task form not found');
+        showErrorFeedback('Form not found. Please refresh the page.');
+        return;
+    }
+    
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (!submitButton) {
+        console.error('Submit button not found');
+        showErrorFeedback('Submit button not found. Please refresh the page.');
+        return;
+    }
+    
     const originalText = submitButton.textContent;
     submitButton.textContent = 'Adding...';
     submitButton.disabled = true;
@@ -201,12 +230,23 @@ async function handleAddTask(e) {
         await eel.add_task(title, description, priority, dueDate, category, goalId)();
         document.getElementById('taskForm').reset();
         newCategoryInput.style.display = 'none';
+        // Hide form after successful submission
+        const taskFormContainer = document.getElementById('taskFormContainer');
+        const toggleTaskFormBtn = document.getElementById('toggleTaskForm');
+        if (taskFormContainer) {
+            taskFormContainer.style.display = 'none';
+        }
+        if (toggleTaskFormBtn) {
+            toggleTaskFormBtn.innerHTML = '<span class="btn-icon">+</span> Add New Task';
+        }
         // Show success feedback
         showSuccessFeedback('Task added successfully!');
         await loadTasks();
     } catch (error) {
         console.error('Error adding task:', error);
         showErrorFeedback('Failed to add task. Please try again.');
+        // Log detailed error for debugging
+        console.error('Full error details:', error);
     } finally {
         submitButton.textContent = originalText;
         submitButton.disabled = false;
@@ -219,9 +259,26 @@ async function handleAddGoal(e) {
     
     const title = document.getElementById('goalTitle').value.trim();
     const description = document.getElementById('goalDescription').value.trim();
-    const submitButton = e.target.querySelector('button[type="submit"]');
     
-    if (!title) return;
+    if (!title) {
+        showErrorFeedback('Please enter a goal title');
+        return;
+    }
+    
+    // Find submit button correctly - it's in the form
+    const form = document.getElementById('goalForm');
+    if (!form) {
+        console.error('Goal form not found');
+        showErrorFeedback('Form not found. Please refresh the page.');
+        return;
+    }
+    
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (!submitButton) {
+        console.error('Submit button not found');
+        showErrorFeedback('Submit button not found. Please refresh the page.');
+        return;
+    }
     
     // Add loading state to button
     const originalText = submitButton.textContent;
@@ -236,6 +293,8 @@ async function handleAddGoal(e) {
     } catch (error) {
         console.error('Error adding goal:', error);
         showErrorFeedback('Failed to add goal. Please try again.');
+        // Log detailed error for debugging
+        console.error('Full error details:', error);
     } finally {
         submitButton.textContent = originalText;
         submitButton.disabled = false;
@@ -459,15 +518,41 @@ function renderTasks() {
         tasksByCategory[category].push(task);
     });
     
-    // Render by category
+    // Sort tasks within each category by priority (Now > Next > Later)
+    const priorityOrder = { Now: 3, Next: 2, Later: 1 };
+    Object.keys(tasksByCategory).forEach(category => {
+        tasksByCategory[category].sort((a, b) => {
+            // Incomplete tasks first
+            if (a.completed !== b.completed) {
+                return a.completed ? 1 : -1;
+            }
+            // Then by priority
+            const priorityA = priorityOrder[a.priority] || 0;
+            const priorityB = priorityOrder[b.priority] || 0;
+            if (priorityA !== priorityB) {
+                return priorityB - priorityA; // Higher priority first
+            }
+            // Then by due date
+            if (a.due_date && b.due_date) {
+                return new Date(a.due_date) - new Date(b.due_date);
+            }
+            if (a.due_date) return -1;
+            if (b.due_date) return 1;
+            return 0;
+        });
+    });
+    
+    // Render by category in rows
     let html = '';
     const sortedCategories = Object.keys(tasksByCategory).sort();
     
     sortedCategories.forEach(category => {
         html += `<div class="category-header">${escapeHtml(category)}</div>`;
+        html += `<div class="category-tasks-row">`;
         tasksByCategory[category].forEach(task => {
             html += createTaskHTML(task);
         });
+        html += `</div>`;
     });
     
     container.innerHTML = html;

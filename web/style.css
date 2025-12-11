@@ -317,6 +317,19 @@ header h1 {
     background: rgba(30, 41, 59, 0.3);
     border-bottom: 1px solid var(--border-color);
     backdrop-filter: blur(10px);
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Animation for form appearing */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Form section headings */
@@ -502,6 +515,31 @@ header h1 {
    TASKS & GOALS SECTIONS
    ============================================ */
 
+/* Add task button container - holds the button to show/hide the form */
+.add-task-button-container {
+    padding: 20px 40px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Add task button - styled to be prominent */
+.btn-add-task {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    padding: 14px 28px;
+}
+
+/* Icon in add task button */
+.btn-icon {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+}
+
 /* Tasks and goals display sections */
 .tasks-section, .goals-section {
     padding: 40px;
@@ -526,16 +564,27 @@ header h1 {
    TASK ITEMS
    ============================================ */
 
-/* Individual task card/item */
+/* Category tasks row - displays tasks in a horizontal row */
+.category-tasks-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+/* Individual task card/item - compact size */
 .task-item {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(10px);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 24px;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
     transition: var(--transition);
     position: relative;
     overflow: hidden;
+    flex: 0 0 auto;
+    min-width: 200px;
+    max-width: 300px;
 }
 
 /* Left border accent on task item hover */
@@ -574,21 +623,22 @@ header h1 {
     color: var(--text-muted);
 }
 
-/* Task header - contains checkbox and content */
+/* Task header - contains checkbox and content - compact */
 .task-header {
     display: flex;
     align-items: flex-start;
-    gap: 16px;
+    gap: 8px;
 }
 
-/* Task completion checkbox */
+/* Task completion checkbox - smaller */
 .task-checkbox {
-    width: 24px;
-    height: 24px;
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    margin-top: 4px;
+    margin-top: 2px;
     accent-color: var(--primary);
     transition: var(--transition);
+    flex-shrink: 0;
 }
 
 .task-checkbox:hover {
@@ -598,49 +648,56 @@ header h1 {
 /* Task content area */
 .task-content {
     flex: 1;
+    min-width: 0; /* Allow text to wrap */
 }
 
-/* Task title */
+/* Task title - smaller font */
 .task-title {
-    font-size: 18px;
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     color: var(--text-primary);
     transition: var(--transition);
+    line-height: 1.3;
 }
 
-/* Task description text */
+/* Task description text - smaller, hidden if too long */
 .task-description {
     color: var(--text-secondary);
-    font-size: 14px;
-    margin-bottom: 12px;
-    line-height: 1.6;
+    font-size: 11px;
+    margin-bottom: 6px;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
-/* Task metadata container - badges, dates, etc. */
+/* Task metadata container - badges, dates, etc. - compact */
 .task-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 4px;
     align-items: center;
-    margin-top: 12px;
+    margin-top: 6px;
 }
 
 /* ============================================
    BADGES & LABELS
    ============================================ */
 
-/* Base badge styling */
+/* Base badge styling - compact */
 .task-badge {
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 9px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     transition: var(--transition);
 }
 
@@ -681,20 +738,20 @@ header h1 {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(124, 58, 237, 0.2));
     color: #c4b5fd;
     border: 1px solid rgba(139, 92, 246, 0.3);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 9px;
     font-weight: 600;
 }
 
-/* Due date display */
+/* Due date display - compact */
 .due-date {
     color: var(--text-secondary);
-    font-size: 13px;
+    font-size: 9px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
+    gap: 3px;
+    padding: 2px 6px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
 }
@@ -713,17 +770,17 @@ header h1 {
 /* Task and goal action buttons container */
 .task-actions, .goal-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 16px;
+    gap: 4px;
+    margin-top: 6px;
 }
 
-/* Edit and delete buttons base styling */
+/* Edit and delete buttons base styling - compact */
 .btn-edit, .btn-delete {
-    padding: 8px 16px;
+    padding: 4px 8px;
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 600;
     transition: var(--transition);
     position: relative;
@@ -951,18 +1008,17 @@ header h1 {
 
 /* Category header - separates tasks by category */
 .category-header {
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
-    margin: 40px 0 20px 0;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--border-color);
+    margin: 24px 0 8px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 14px;
+    letter-spacing: 0.5px;
 }
 
 /* Decorative bar before category header */
