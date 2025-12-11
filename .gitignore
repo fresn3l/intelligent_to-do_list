@@ -11,6 +11,8 @@ ENV/
 
 # Application data
 tasks.json
+goals.json
+categories.json
 
 # IDE
 .vscode/

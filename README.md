@@ -2,6 +2,15 @@
 
 A beautiful desktop application for managing your tasks, built with Python (Eel) and modern web technologies.
 
+## 📚 Learning Resources
+
+This repository includes comprehensive educational documentation:
+
+- **[LEARNING_GUIDE.md](LEARNING_GUIDE.md)**: Complete tutorial teaching you how to code through this project
+- **[CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md)**: Line-by-line code explanations for every file
+
+Perfect for beginners learning Python, JavaScript, HTML, CSS, and desktop app development!
+
 ## Features
 
 - ✨ **Modern UI**: Beautiful gradient design with smooth animations
