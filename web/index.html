@@ -21,6 +21,7 @@
                 <button class="tab-button active" data-tab="habits">Habits</button>
                 <button class="tab-button" data-tab="goals">Goals</button>
                 <button class="tab-button" data-tab="analytics">Analytics</button>
+                <button class="tab-button" data-tab="time">Time Analytics</button>
             </div>
         </header>
 
@@ -105,6 +106,14 @@
                         </div>
                     </div>
                     
+                    <!-- Time tracking option -->
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="habitTrackTime" style="width: auto; margin: 0;">
+                            <span>Track time spent (e.g., for workouts, reading, etc.)</span>
+                        </label>
+                    </div>
+                    
                     <!-- Submit button - creates the new habit -->
                     <button type="submit" class="btn-primary">Add Habit</button>
                 </form>
@@ -167,6 +176,47 @@
             <!-- Analytics container - all analytics cards will be inserted here -->
             <div id="analyticsContainer" class="analytics-container">
                 <!-- Analytics will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- TIME ANALYTICS TAB - Time tracking and visualizations -->
+        <!-- ============================================ -->
+        <div id="timeTab" class="tab-content">
+            
+            <!-- Time Analytics header -->
+            <div class="analytics-header">
+                <h2>Time Analytics</h2>
+                <div class="analytics-header-buttons">
+                    <button id="refreshTimeAnalytics" class="btn-primary">Refresh Data</button>
+                    <select id="timePeriod" class="filter-select" style="width: auto;">
+                        <option value="daily">Daily</option>
+                        <option value="weekly" selected>Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Time Analytics container - all time analytics will be inserted here -->
+            <div id="timeAnalyticsContainer" class="analytics-container">
+                <!-- Time analytics will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Input Modal - appears when checking in a time-tracking habit -->
+    <div id="timeInputModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Time Spent</h3>
+            <p>How much time did you spend on this habit?</p>
+            <div class="time-input-group">
+                <input type="number" id="timeHours" min="0" max="23" value="0" placeholder="Hours">
+                <span>:</span>
+                <input type="number" id="timeMinutes" min="0" max="59" value="0" placeholder="Minutes">
+            </div>
+            <div class="modal-actions">
+                <button id="timeInputCancel" class="btn-secondary">Cancel</button>
+                <button id="timeInputConfirm" class="btn-primary">Confirm</button>
             </div>
         </div>
     </div>

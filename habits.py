@@ -35,7 +35,7 @@ def get_habits():
 
 @eel.expose
 def add_habit(title: str, description: str = "", priority: str = "Next", 
-             frequency: str = "daily", goal_id: Optional[int] = None):
+             frequency: str = "daily", goal_id: Optional[int] = None, track_time: bool = False):
     """
     Add a new habit to the system.
     
@@ -45,6 +45,7 @@ def add_habit(title: str, description: str = "", priority: str = "Next",
         priority: Priority level - "Now", "Next", or "Later" (default: "Next")
         frequency: Frequency - "daily", "weekly", or "custom" (default: "daily")
         goal_id: ID of linked goal (optional)
+        track_time: Whether to track time spent for this habit (default: False)
     
     Returns:
         Dict: The newly created habit dictionary
@@ -61,7 +62,8 @@ def add_habit(title: str, description: str = "", priority: str = "Next",
         "description": description,
         "priority": priority,  # Now, Next, Later
         "frequency": frequency,  # daily, weekly, custom
-        "check_ins": [],  # List of dates (ISO format strings) when habit was checked in
+        "check_ins": [],  # List of check-in objects: {"date": "YYYY-MM-DD", "time_spent": minutes (optional)}
+        "track_time": track_time,  # Whether this habit tracks time
         "created_at": datetime.now().isoformat(),
         "goal_id": goal_id
     }
@@ -75,7 +77,7 @@ def add_habit(title: str, description: str = "", priority: str = "Next",
 @eel.expose
 def update_habit(habit_id: int, title: str = None, description: str = None,
                 priority: str = None, frequency: str = None,
-                goal_id: Optional[int] = None):
+                goal_id: Optional[int] = None, track_time: Optional[bool] = None):
     """
     Update an existing habit.
     
@@ -106,6 +108,8 @@ def update_habit(habit_id: int, title: str = None, description: str = None,
                 habit["frequency"] = frequency
             if goal_id is not None:
                 habit["goal_id"] = goal_id
+            if track_time is not None:
+                habit["track_time"] = track_time
             
             # Save updated habits
             save_habits(habits)
@@ -114,13 +118,14 @@ def update_habit(habit_id: int, title: str = None, description: str = None,
     return None
 
 @eel.expose
-def check_in_habit(habit_id: int, check_date: str = None):
+def check_in_habit(habit_id: int, check_date: str = None, time_spent: Optional[float] = None):
     """
     Check in a habit for a specific date (defaults to today).
     
     Args:
         habit_id: ID of habit to check in
         check_date: Date in ISO format (YYYY-MM-DD), defaults to today
+        time_spent: Time spent in minutes (optional, only used if habit tracks time)
     
     Returns:
         Dict: Updated habit dictionary, or None if habit not found
@@ -138,10 +143,34 @@ def check_in_habit(habit_id: int, check_date: str = None):
             if "check_ins" not in habit:
                 habit["check_ins"] = []
             
-            # Add check-in if not already present
-            if check_date not in habit["check_ins"]:
-                habit["check_ins"].append(check_date)
-                habit["check_ins"].sort()  # Keep sorted
+            # Check if check-in already exists for this date
+            existing_checkin = None
+            for i, checkin in enumerate(habit["check_ins"]):
+                if isinstance(checkin, dict) and checkin.get("date") == check_date:
+                    existing_checkin = i
+                    break
+                elif isinstance(checkin, str) and checkin == check_date:
+                    # Migrate old format to new format
+                    habit["check_ins"][i] = {"date": check_date, "time_spent": None}
+                    existing_checkin = i
+                    break
+            
+            # Create check-in object
+            checkin_obj = {"date": check_date}
+            if time_spent is not None and habit.get("track_time", False):
+                checkin_obj["time_spent"] = time_spent
+            
+            # Update or add check-in
+            if existing_checkin is not None:
+                # Update existing check-in
+                if time_spent is not None and habit.get("track_time", False):
+                    habit["check_ins"][existing_checkin] = checkin_obj
+            else:
+                # Add new check-in
+                habit["check_ins"].append(checkin_obj)
+            
+            # Sort by date
+            habit["check_ins"].sort(key=lambda x: x.get("date") if isinstance(x, dict) else x)
             
             # Save updated habits
             save_habits(habits)
@@ -174,9 +203,12 @@ def uncheck_habit(habit_id: int, check_date: str = None):
             if "check_ins" not in habit:
                 habit["check_ins"] = []
             
-            # Remove check-in if present
-            if check_date in habit["check_ins"]:
-                habit["check_ins"].remove(check_date)
+            # Remove check-in if present (handle both old string format and new dict format)
+            habit["check_ins"] = [
+                checkin for checkin in habit["check_ins"]
+                if (isinstance(checkin, dict) and checkin.get("date") != check_date) or
+                   (isinstance(checkin, str) and checkin != check_date)
+            ]
             
             # Save updated habits
             save_habits(habits)
@@ -204,8 +236,15 @@ def get_habit_streak(habit_id: int):
             if not check_ins:
                 return 0
             
-            # Convert check-ins to date objects and sort
-            check_dates = sorted([date.fromisoformat(d) for d in check_ins])
+            # Convert check-ins to date objects and sort (handle both old string format and new dict format)
+            check_dates = []
+            for checkin in check_ins:
+                if isinstance(checkin, dict):
+                    check_dates.append(date.fromisoformat(checkin.get("date")))
+                elif isinstance(checkin, str):
+                    check_dates.append(date.fromisoformat(checkin))
+            
+            check_dates = sorted(check_dates)
             
             # Calculate streak backwards from today
             today = date.today()

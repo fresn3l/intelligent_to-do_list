@@ -145,6 +145,38 @@ function setupEventListeners() {
     if (filterGoal) {
         filterGoal.addEventListener('change', handleFilterChange);
     }
+    
+    // Time input modal handlers
+    const timeInputConfirm = document.getElementById('timeInputConfirm');
+    const timeInputCancel = document.getElementById('timeInputCancel');
+    if (timeInputConfirm) {
+        timeInputConfirm.addEventListener('click', handleTimeInputConfirm);
+    }
+    if (timeInputCancel) {
+        timeInputCancel.addEventListener('click', handleTimeInputCancel);
+    }
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('timeInputModal');
+            if (modal && modal.style.display !== 'none') {
+                handleTimeInputCancel();
+            }
+        }
+    });
+    
+    // Time analytics refresh
+    const refreshTimeAnalytics = document.getElementById('refreshTimeAnalytics');
+    if (refreshTimeAnalytics) {
+        refreshTimeAnalytics.addEventListener('click', loadTimeAnalytics);
+    }
+    
+    // Time period selector
+    const timePeriod = document.getElementById('timePeriod');
+    if (timePeriod) {
+        timePeriod.addEventListener('change', loadTimeAnalytics);
+    }
 }
 
 // Tab management
@@ -181,6 +213,11 @@ function switchTab(tabName) {
         loadAnalytics();
         setupAnalytics();
     }
+    
+    // If switching to time analytics tab, load time analytics
+    if (tabName === 'time') {
+        loadTimeAnalytics();
+    }
 }
 
 // Handle adding a new habit
@@ -192,6 +229,7 @@ async function handleAddHabit(e) {
     const priority = document.getElementById('habitPriority').value;
     const frequency = document.getElementById('habitFrequency').value;
     const goalSelect = document.getElementById('habitGoal');
+    const trackTime = document.getElementById('habitTrackTime').checked;
     
     const goalId = goalSelect.value ? parseInt(goalSelect.value) : null;
     
@@ -219,7 +257,7 @@ async function handleAddHabit(e) {
     submitButton.disabled = true;
     
     try {
-        await eel.add_habit(title, description, priority, frequency, goalId)();
+        await eel.add_habit(title, description, priority, frequency, goalId, trackTime)();
         document.getElementById('habitForm').reset();
         // Hide form after successful submission
         const habitFormContainer = document.getElementById('habitFormContainer');
@@ -344,16 +382,61 @@ function handleFilterChange() {
 }
 
 // Check in habit for today
-async function checkInHabit(habitId) {
+let pendingCheckInHabitId = null;
+
+async function checkInHabit(habitId, timeSpent = null) {
     try {
-        await eel.check_in_habit(habitId)();
+        await eel.check_in_habit(habitId, null, timeSpent)();
         await loadHabits();
         await loadGoals(); // Update goal progress
         showSuccessFeedback('Habit checked in!');
+        pendingCheckInHabitId = null;
     } catch (error) {
         console.error('Error checking in habit:', error);
         showErrorFeedback('Failed to check in habit. Please try again.');
+        pendingCheckInHabitId = null;
     }
+}
+
+// Show time input modal for time-tracking habits
+function showTimeInputModal(habitId) {
+    const modal = document.getElementById('timeInputModal');
+    const habit = habits.find(h => h.id === habitId);
+    
+    if (!modal || !habit) return;
+    
+    pendingCheckInHabitId = habitId;
+    
+    // Reset inputs
+    document.getElementById('timeHours').value = 0;
+    document.getElementById('timeMinutes').value = 0;
+    
+    // Show modal
+    modal.style.display = 'flex';
+    
+    // Focus on hours input
+    setTimeout(() => document.getElementById('timeHours').focus(), 100);
+}
+
+// Handle time input confirmation
+function handleTimeInputConfirm() {
+    const modal = document.getElementById('timeInputModal');
+    const hours = parseInt(document.getElementById('timeHours').value) || 0;
+    const minutes = parseInt(document.getElementById('timeMinutes').value) || 0;
+    const totalMinutes = hours * 60 + minutes;
+    
+    if (pendingCheckInHabitId) {
+        checkInHabit(pendingCheckInHabitId, totalMinutes);
+    }
+    
+    modal.style.display = 'none';
+}
+
+// Handle time input cancel
+function handleTimeInputCancel() {
+    const modal = document.getElementById('timeInputModal');
+    modal.style.display = 'none';
+    pendingCheckInHabitId = null;
 }
 
 // Uncheck habit for today
@@ -392,6 +475,7 @@ async function editHabit(habitId) {
     document.getElementById('habitPriority').value = habit.priority;
     document.getElementById('habitFrequency').value = habit.frequency || 'daily';
     document.getElementById('habitGoal').value = habit.goal_id || '';
+    document.getElementById('habitTrackTime').checked = habit.track_time || false;
     
     // Switch to habits tab and scroll to form
     switchTab('habits');
@@ -505,11 +589,29 @@ function renderHabits() {
         if (checkInBtn) {
             checkInBtn.addEventListener('click', () => {
                 const today = new Date().toISOString().split('T')[0];
-                const isCheckedIn = habit.check_ins && habit.check_ins.includes(today);
+                // Check if habit is checked in (handle both old string format and new dict format)
+                let isCheckedIn = false;
+                if (habit.check_ins) {
+                    for (const checkin of habit.check_ins) {
+                        if (typeof checkin === 'string' && checkin === today) {
+                            isCheckedIn = true;
+                            break;
+                        } else if (typeof checkin === 'object' && checkin.date === today) {
+                            isCheckedIn = true;
+                            break;
+                        }
+                    }
+                }
+                
                 if (isCheckedIn) {
                     uncheckHabit(habit.id);
                 } else {
-                    checkInHabit(habit.id);
+                    // If habit tracks time, show time input modal
+                    if (habit.track_time) {
+                        showTimeInputModal(habit.id);
+                    } else {
+                        checkInHabit(habit.id);
+                    }
                 }
             });
             addRippleEffect(checkInBtn);
@@ -531,11 +633,36 @@ function renderHabits() {
 // Create HTML for a habit
 function createHabitHTML(habit) {
     const today = new Date().toISOString().split('T')[0];
-    const isCheckedIn = habit.check_ins && habit.check_ins.includes(today);
     const checkIns = habit.check_ins || [];
     const streak = habit.streak || 0;
     const goal = goals.find(g => g.id === habit.goal_id);
-    const totalCheckIns = checkIns.length;
+    const trackTime = habit.track_time || false;
+    
+    // Check if checked in today (handle both old string format and new dict format)
+    let isCheckedIn = false;
+    let todayTimeSpent = null;
+    for (const checkin of checkIns) {
+        if (typeof checkin === 'string' && checkin === today) {
+            isCheckedIn = true;
+            break;
+        } else if (typeof checkin === 'object' && checkin.date === today) {
+            isCheckedIn = true;
+            todayTimeSpent = checkin.time_spent || null;
+            break;
+        }
+    }
+    
+    // Calculate total time spent
+    let totalTimeSpent = 0;
+    if (trackTime) {
+        for (const checkin of checkIns) {
+            if (typeof checkin === 'object' && checkin.time_spent) {
+                totalTimeSpent += checkin.time_spent;
+            }
+        }
+    }
+    const totalHours = Math.floor(totalTimeSpent / 60);
+    const totalMinutes = totalTimeSpent % 60;
     
     // Calculate last 7 days check-in status
     const last7Days = [];
@@ -543,11 +670,28 @@ function createHabitHTML(habit) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
+        let checked = false;
+        let timeSpent = null;
+        
+        for (const checkin of checkIns) {
+            if (typeof checkin === 'string' && checkin === dateStr) {
+                checked = true;
+                break;
+            } else if (typeof checkin === 'object' && checkin.date === dateStr) {
+                checked = true;
+                timeSpent = checkin.time_spent || null;
+                break;
+            }
+        }
+        
         last7Days.push({
             date: dateStr,
-            checked: checkIns.includes(dateStr)
+            checked: checked,
+            timeSpent: timeSpent
         });
     }
+    
+    const totalCheckIns = checkIns.length;
     
     return `
         <div class="task-item habit-item">
@@ -556,7 +700,10 @@ function createHabitHTML(habit) {
                     ${isCheckedIn ? '✓' : '○'}
                 </button>
                 <div class="task-content">
-                    <div class="task-title">${escapeHtml(habit.title)}</div>
+                    <div class="task-title">
+                        ${escapeHtml(habit.title)}
+                        ${trackTime ? '<span class="time-track-icon" title="Time tracking enabled">⏱️</span>' : ''}
+                    </div>
                     ${habit.description ? `<div class="task-description">${escapeHtml(habit.description)}</div>` : ''}
                     <div class="task-meta">
                         <span class="task-badge priority-${habit.priority.toLowerCase()}">${habit.priority}</span>
@@ -564,13 +711,23 @@ function createHabitHTML(habit) {
                         <span class="streak-badge">🔥 ${streak} day streak</span>
                         ${goal ? `<span class="goal-badge">🎯 ${escapeHtml(goal.title)}</span>` : ''}
                         <span class="checkin-count">${totalCheckIns} check-ins</span>
+                        ${trackTime && totalTimeSpent > 0 ? `<span class="time-spent-badge">⏱️ ${totalHours}h ${totalMinutes}m total</span>` : ''}
+                        ${isCheckedIn && todayTimeSpent !== null ? `<span class="today-time-badge">⏱️ ${Math.floor(todayTimeSpent / 60)}h ${todayTimeSpent % 60}m today</span>` : ''}
                     </div>
                     <div class="habit-week-view">
-                        ${last7Days.map(day => `
-                            <span class="day-indicator ${day.checked ? 'checked' : ''}" title="${day.date}">
-                                ${day.checked ? '✓' : '○'}
-                            </span>
-                        `).join('')}
+                        ${last7Days.map(day => {
+                            let title = day.date;
+                            if (day.checked && day.timeSpent !== null) {
+                                const hours = Math.floor(day.timeSpent / 60);
+                                const minutes = day.timeSpent % 60;
+                                title += ` - ${hours}h ${minutes}m`;
+                            }
+                            return `
+                                <span class="day-indicator ${day.checked ? 'checked' : ''}" title="${title}">
+                                    ${day.checked ? (day.timeSpent !== null ? '⏱️' : '✓') : '○'}
+                                </span>
+                            `;
+                        }).join('')}
                     </div>
                     <div class="task-actions">
                         <button class="btn-edit" id="edit-${habit.id}">Edit</button>
@@ -1174,7 +1331,8 @@ function initializeDragAndResize() {
             
             // Add mousedown event to start dragging
             dragHandle.addEventListener('mousedown', (e) => {
-                startDragging(e, card);
+                const container = card.closest('#analyticsContainer') || card.closest('#timeAnalyticsContainer');
+                startDragging(e, card, container);
             });
         }
         
@@ -1257,7 +1415,8 @@ function startDragging(e, card) {
         card.style.cursor = 'default';
         
         // Save the new position to localStorage
-        saveCardPosition(card);
+        const isTimeAnalytics = container && container.id === 'timeAnalyticsContainer';
+        saveCardPosition(card, isTimeAnalytics);
     }
     
     // Add event listeners for mouse movement and release
@@ -1348,7 +1507,7 @@ function startResizing(e, card) {
  * 
  * @param {HTMLElement} card - The card element
  */
-function saveCardPosition(card) {
+function saveCardPosition(card, isTimeAnalytics = false) {
     // Get the card's unique ID
     const cardId = card.getAttribute('data-card-id');
     if (!cardId) return;
@@ -1356,19 +1515,19 @@ function saveCardPosition(card) {
     // Get current position
     const left = card.style.left;
     const top = card.style.top;
+    const width = card.style.width;
+    const height = card.style.height;
     
-    // Load existing saved positions or create new object
-    const savedPositions = JSON.parse(localStorage.getItem('analyticsCardPositions') || '{}');
-    
-    // Update position for this card
-    if (!savedPositions[cardId]) {
-        savedPositions[cardId] = {};
-    }
-    savedPositions[cardId].left = left;
-    savedPositions[cardId].top = top;
+    // Use different storage key for time analytics
+    const storageKey = isTimeAnalytics ? `timeCard_${cardId}` : `analyticsCard_${cardId}`;
     
     // Save to localStorage
-    localStorage.setItem('analyticsCardPositions', JSON.stringify(savedPositions));
+    localStorage.setItem(storageKey, JSON.stringify({
+        x: parseInt(left) || 0,
+        y: parseInt(top) || 0,
+        width: width || null,
+        height: height || null
+    }));
 }
 
 /**
@@ -1430,6 +1589,281 @@ function loadCardPositions() {
             card.style.minHeight = savedSizes[cardId].minHeight || '';
         }
     });
+}
+
+// ============================================
+// TIME ANALYTICS FUNCTIONS
+// ============================================
+
+/**
+ * Load and display time analytics
+ */
+async function loadTimeAnalytics() {
+    try {
+        const period = document.getElementById('timePeriod')?.value || 'weekly';
+        const analytics = await eel.get_time_analytics(period)();
+        renderTimeAnalytics(analytics, period);
+    } catch (error) {
+        console.error('Error loading time analytics:', error);
+        const container = document.getElementById('timeAnalyticsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3>Error Loading Time Analytics</h3>
+                    <p>Unable to load time analytics data. Please try again.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Render time analytics with visualizations
+ */
+function renderTimeAnalytics(analytics, period) {
+    const container = document.getElementById('timeAnalyticsContainer');
+    if (!container) return;
+    
+    if (!analytics || analytics.total_time === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>No Time Data Available</h3>
+                <p>Enable time tracking on habits and check them in with time spent to see analytics!</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const totalHours = Math.floor(analytics.total_time / 60);
+    const totalMinutes = analytics.total_time % 60;
+    
+    let html = '';
+    
+    // Overall Time Statistics Card
+    html += `
+        <div class="analytics-card draggable-card resizable-card" data-card-id="time-overall">
+            <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+            <div class="card-resize-handle" title="Drag to resize"></div>
+            <div class="analytics-card-header">
+                <h3>⏱️ Total Time Spent</h3>
+            </div>
+            <div class="analytics-card-content">
+                <div class="stat-grid">
+                    <div class="stat-item stat-primary">
+                        <div class="stat-value">${totalHours}h ${totalMinutes}m</div>
+                        <div class="stat-label">Total Time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${Object.keys(analytics.by_habit).length}</div>
+                        <div class="stat-label">Habits Tracked</div>
+                    </div>
+                    <div class="stat-item stat-success">
+                        <div class="stat-value">${Math.round(analytics.total_time / 60 / Object.keys(analytics.by_habit).length)}h</div>
+                        <div class="stat-label">Avg per Habit</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Time by Habit Card
+    if (Object.keys(analytics.by_habit).length > 0) {
+        html += `
+            <div class="analytics-card draggable-card resizable-card" data-card-id="time-by-habit">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
+                <div class="analytics-card-header">
+                    <h3>📊 Time by Habit</h3>
+                </div>
+                <div class="analytics-card-content">
+        `;
+        
+        // Sort habits by time spent (highest first)
+        const sortedHabits = Object.entries(analytics.by_habit)
+            .sort((a, b) => b[1].total_minutes - a[1].total_minutes);
+        
+        sortedHabits.forEach(([habitName, data]) => {
+            const hours = Math.floor(data.total_minutes / 60);
+            const minutes = data.total_minutes % 60;
+            const percentage = (data.total_minutes / analytics.total_time * 100).toFixed(1);
+            
+            html += `
+                <div class="time-habit-row">
+                    <div class="time-habit-header">
+                        <span class="habit-name">${escapeHtml(habitName)}</span>
+                        <span class="time-value">${hours}h ${minutes}m</span>
+                    </div>
+                    <div class="time-habit-details">
+                        <span>${data.check_ins} check-ins</span>
+                        <span>${percentage}% of total</span>
+                    </div>
+                    <div class="progress-bar-small">
+                        <div class="progress-fill-small" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div></div>`;
+    }
+    
+    // Time by Goal Card
+    if (Object.keys(analytics.by_goal).length > 0) {
+        html += `
+            <div class="analytics-card draggable-card resizable-card" data-card-id="time-by-goal">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
+                <div class="analytics-card-header">
+                    <h3>🎯 Time by Goal</h3>
+                </div>
+                <div class="analytics-card-content">
+        `;
+        
+        // Sort goals by time spent
+        const sortedGoals = Object.entries(analytics.by_goal)
+            .sort((a, b) => b[1] - a[1]);
+        
+        sortedGoals.forEach(([goalName, hours]) => {
+            const percentage = (hours * 60 / analytics.total_time * 100).toFixed(1);
+            const wholeHours = Math.floor(hours);
+            const minutes = Math.round((hours - wholeHours) * 60);
+            
+            html += `
+                <div class="time-goal-row">
+                    <div class="time-goal-header">
+                        <span class="goal-name">${escapeHtml(goalName)}</span>
+                        <span class="time-value">${wholeHours}h ${minutes}m</span>
+                    </div>
+                    <div class="progress-bar-small">
+                        <div class="progress-fill-small" style="width: ${percentage}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div></div>`;
+    }
+    
+    // Time Trends Chart Card
+    if (analytics.trends && analytics.trends.length > 0) {
+        html += `
+            <div class="analytics-card draggable-card resizable-card" data-card-id="time-trends">
+                <div class="card-drag-handle" title="Drag to move">⋮⋮</div>
+                <div class="card-resize-handle" title="Drag to resize"></div>
+                <div class="analytics-card-header">
+                    <h3>📈 Time Trends (${period.charAt(0).toUpperCase() + period.slice(1)})</h3>
+                </div>
+                <div class="analytics-card-content">
+                    <div class="time-chart-container">
+                        ${renderTimeChart(analytics.trends, period)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+    
+    // Load saved positions and sizes (for time analytics container)
+    const timeContainer = document.getElementById('timeAnalyticsContainer');
+    if (timeContainer) {
+        // Use the same drag/resize logic but for time analytics container
+        setTimeout(() => {
+            initializeTimeAnalyticsDragAndResize();
+        }, 100);
+    }
+}
+
+/**
+ * Initialize drag and resize for time analytics cards
+ */
+function initializeTimeAnalyticsDragAndResize() {
+    const container = document.getElementById('timeAnalyticsContainer');
+    if (!container) return;
+    
+    const cards = container.querySelectorAll('.draggable-card');
+    
+    cards.forEach(card => {
+        const dragHandle = card.querySelector('.card-drag-handle');
+        const resizeHandle = card.querySelector('.card-resize-handle');
+        
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startDragging(e, card, container);
+            });
+        }
+        
+        if (resizeHandle) {
+            resizeHandle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                startResizing(e, card);
+            });
+        }
+    });
+    
+    // Load saved positions
+    loadTimeCardPositions();
+}
+
+/**
+ * Load saved card positions for time analytics
+ */
+function loadTimeCardPositions() {
+    const container = document.getElementById('timeAnalyticsContainer');
+    if (!container) return;
+    
+    const cards = container.querySelectorAll('.draggable-card');
+    cards.forEach(card => {
+        const cardId = card.getAttribute('data-card-id');
+        const saved = localStorage.getItem(`timeCard_${cardId}`);
+        
+        if (saved) {
+            try {
+                const { x, y, width, height } = JSON.parse(saved);
+                card.style.position = 'absolute';
+                card.style.left = `${x}px`;
+                card.style.top = `${y}px`;
+                if (width) card.style.width = `${width}px`;
+                if (height) card.style.height = `${height}px`;
+            } catch (e) {
+                console.error('Error loading card position:', e);
+            }
+        }
+    });
+}
+
+/**
+ * Render a simple bar chart for time trends
+ */
+function renderTimeChart(trends, period) {
+    if (!trends || trends.length === 0) return '<p>No data available</p>';
+    
+    const maxTime = Math.max(...trends.map(t => t.time), 1);
+    const chartHeight = 200;
+    
+    let html = '<div class="time-chart">';
+    
+    trends.forEach((trend, index) => {
+        const height = maxTime > 0 ? (trend.time / maxTime * chartHeight) : 0;
+        const label = period === 'daily' 
+            ? new Date(trend.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : period === 'weekly'
+            ? `Week ${index + 1}`
+            : trend.month;
+        
+        html += `
+            <div class="chart-bar-container">
+                <div class="chart-bar" style="height: ${height}px;" title="${label}: ${trend.time.toFixed(1)}h">
+                    <div class="chart-bar-fill"></div>
+                </div>
+                <div class="chart-label">${label}</div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
 }
 
 // Initialize when page loads

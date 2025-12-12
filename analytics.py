@@ -13,7 +13,7 @@ All functions decorated with @eel.expose are callable from JavaScript.
 """
 
 import eel
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import List, Dict
 
 # Import data storage functions
@@ -279,5 +279,151 @@ def get_analytics():
     # ============================================
     # Return the complete analytics dictionary
     # This will be sent to JavaScript for display
+    return analytics
+
+@eel.expose
+def get_time_analytics(period: str = "weekly"):
+    """
+    Calculate time-based analytics for habits that track time.
+    
+    Args:
+        period: Time period - "daily", "weekly", or "monthly" (default: "weekly")
+    
+    Returns:
+        dict: Time analytics with:
+            - total_time: Total time spent across all habits (in minutes)
+            - by_habit: Time spent per habit
+            - by_goal: Time spent per goal
+            - daily_breakdown: Time spent per day
+            - weekly_breakdown: Time spent per week
+            - monthly_breakdown: Time spent per month
+            - trends: Time trends over time
+    """
+    from collections import defaultdict
+    
+    habits = load_habits()
+    goals = load_goals()
+    
+    # Filter habits that track time
+    time_tracking_habits = [h for h in habits if h.get("track_time", False)]
+    
+    if not time_tracking_habits:
+        return {
+            "total_time": 0,
+            "by_habit": {},
+            "by_goal": {},
+            "daily_breakdown": {},
+            "weekly_breakdown": {},
+            "monthly_breakdown": {},
+            "trends": []
+        }
+    
+    # Initialize analytics structure
+    analytics = {
+        "total_time": 0,
+        "by_habit": {},
+        "by_goal": defaultdict(float),
+        "daily_breakdown": defaultdict(float),
+        "weekly_breakdown": defaultdict(float),
+        "monthly_breakdown": defaultdict(float),
+        "trends": []
+    }
+    
+    # Process each time-tracking habit
+    for habit in time_tracking_habits:
+        habit_time = 0
+        check_ins = habit.get("check_ins", [])
+        
+        # Process check-ins
+        for checkin in check_ins:
+            if isinstance(checkin, dict) and checkin.get("time_spent"):
+                time_spent = checkin.get("time_spent", 0)
+                habit_time += time_spent
+                analytics["total_time"] += time_spent
+                
+                # Get date from check-in
+                checkin_date_str = checkin.get("date")
+                if checkin_date_str:
+                    try:
+                        checkin_date = date.fromisoformat(checkin_date_str)
+                        
+                        # Daily breakdown
+                        analytics["daily_breakdown"][checkin_date_str] += time_spent
+                        
+                        # Weekly breakdown (Monday of the week)
+                        days_since_monday = checkin_date.weekday()
+                        week_start = checkin_date - timedelta(days=days_since_monday)
+                        week_key = week_start.isoformat()
+                        analytics["weekly_breakdown"][week_key] += time_spent
+                        
+                        # Monthly breakdown
+                        month_key = checkin_date.strftime("%Y-%m")
+                        analytics["monthly_breakdown"][month_key] += time_spent
+                        
+                    except (ValueError, TypeError):
+                        pass
+        
+        # Store habit time
+        if habit_time > 0:
+            analytics["by_habit"][habit["title"]] = {
+                "total_minutes": habit_time,
+                "total_hours": round(habit_time / 60, 2),
+                "check_ins": len([c for c in check_ins if isinstance(c, dict) and c.get("time_spent")])
+            }
+            
+            # Add to goal time if habit has a goal
+            if habit.get("goal_id"):
+                goal = next((g for g in goals if g["id"] == habit["goal_id"]), None)
+                if goal:
+                    analytics["by_goal"][goal["title"]] += habit_time
+    
+    # Convert defaultdicts to regular dicts
+    analytics["by_goal"] = dict(analytics["by_goal"])
+    analytics["daily_breakdown"] = dict(analytics["daily_breakdown"])
+    analytics["weekly_breakdown"] = dict(analytics["weekly_breakdown"])
+    analytics["monthly_breakdown"] = dict(analytics["monthly_breakdown"])
+    
+    # Convert goal times to hours
+    for goal_name in analytics["by_goal"]:
+        analytics["by_goal"][goal_name] = round(analytics["by_goal"][goal_name] / 60, 2)
+    
+    # Generate trends based on period
+    if period == "daily":
+        # Last 30 days
+        trends_data = []
+        for i in range(29, -1, -1):
+            trend_date = date.today() - timedelta(days=i)
+            date_str = trend_date.isoformat()
+            trends_data.append({
+                "date": date_str,
+                "time": analytics["daily_breakdown"].get(date_str, 0) / 60  # Convert to hours
+            })
+        analytics["trends"] = trends_data
+    elif period == "weekly":
+        # Last 12 weeks
+        trends_data = []
+        for i in range(11, -1, -1):
+            week_date = date.today() - timedelta(weeks=i)
+            days_since_monday = week_date.weekday()
+            week_start = week_date - timedelta(days=days_since_monday)
+            week_key = week_start.isoformat()
+            trends_data.append({
+                "week": week_key,
+                "time": analytics["weekly_breakdown"].get(week_key, 0) / 60  # Convert to hours
+            })
+        analytics["trends"] = trends_data
+    else:  # monthly
+        # Last 12 months
+        trends_data = []
+        current = date.today().replace(day=1)
+        for i in range(11, -1, -1):
+            month_date = current - timedelta(days=30 * i)
+            month_key = month_date.strftime("%Y-%m")
+            trends_data.append({
+                "month": month_key,
+                "time": analytics["monthly_breakdown"].get(month_key, 0) / 60  # Convert to hours
+            })
+        analytics["trends"] = trends_data
+    
     return analytics
 
