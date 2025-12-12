@@ -21,9 +21,8 @@ This document explains the modular architecture of the application and how the c
 intelligent_to-do_list/
 ├── main.py              # Application entry point (initializes Eel, starts app)
 ├── data_storage.py      # File I/O operations (not exposed to JavaScript)
-├── todo.py              # Task management (exposed to JavaScript)
+├── habits.py            # Habit management (exposed to JavaScript)
 ├── goals.py             # Goal management (exposed to JavaScript)
-├── categories.py        # Category management (exposed to JavaScript)
 ├── analytics.py         # Analytics and statistics (exposed to JavaScript)
 └── web/                 # Frontend files
     ├── index.html
@@ -38,12 +37,10 @@ intelligent_to-do_list/
 **Purpose**: Handles all file I/O operations
 
 **Functions**:
-- `load_tasks()` - Load tasks from JSON
-- `save_tasks()` - Save tasks to JSON
+- `load_habits()` - Load habits from JSON
+- `save_habits()` - Save habits to JSON
 - `load_goals()` - Load goals from JSON
 - `save_goals()` - Save goals to JSON
-- `load_categories()` - Load categories from JSON
-- `save_categories()` - Save categories to JSON
 
 **Not Exposed to JavaScript**: This module doesn't use `@eel.expose` because it's only used internally by other modules.
 
@@ -52,18 +49,19 @@ intelligent_to-do_list/
 - Easy to change storage mechanism (e.g., switch to database)
 - Consistent error handling
 
-### 2. `todo.py` - Task Management
+### 2. `habits.py` - Habit Management
 
-**Purpose**: All task-related operations
+**Purpose**: All habit-related operations
 
 **Exposed Functions**:
-- `get_tasks()` - Get all tasks
-- `add_task()` - Create new task
-- `update_task()` - Update existing task
-- `toggle_task()` - Toggle completion status
-- `delete_task()` - Delete task
-- `search_tasks()` - Search tasks by text
-- `filter_tasks()` - Filter tasks by criteria
+- `get_habits()` - Get all habits
+- `add_habit()` - Create new habit
+- `update_habit()` - Update existing habit
+- `check_in_habit()` - Check in habit for a date (with optional time tracking)
+- `uncheck_habit()` - Remove check-in for a date
+- `delete_habit()` - Delete habit
+- `get_habit_streak()` - Get current streak for a habit
+- `get_habit_history()` - Get check-in history for a habit
 
 **Dependencies**: Imports `data_storage` for file operations
 
@@ -80,23 +78,13 @@ intelligent_to-do_list/
 
 **Dependencies**: Imports `data_storage` for file operations
 
-### 4. `categories.py` - Category Management
-
-**Purpose**: Category operations
-
-**Exposed Functions**:
-- `get_categories()` - Get all categories
-- `add_category()` - Create new category
-- `delete_category()` - Delete category (removes from tasks)
-
-**Dependencies**: Imports `data_storage` for file operations
-
-### 5. `analytics.py` - Analytics and Statistics
+### 4. `analytics.py` - Analytics and Statistics
 
 **Purpose**: Calculate comprehensive analytics
 
 **Exposed Functions**:
-- `get_analytics()` - Get all analytics (overall, by category, by priority, by goal, time stats, productivity)
+- `get_analytics()` - Get all analytics (overall, by priority, by goal, streaks, productivity)
+- `get_time_analytics()` - Get time-based analytics for habits with time tracking
 
 **Dependencies**: Imports `data_storage` for reading data
 
@@ -125,16 +113,16 @@ When you import a module that contains `@eel.expose` decorators, Eel automatical
 
 **Example**:
 ```python
-# In todo.py
+# In habits.py
 @eel.expose
-def add_task(title: str):
+def add_habit(title: str):
     # ... function code ...
 
 # In main.py
-import todo  # This import registers the @eel.expose functions
+import habits  # This import registers the @eel.expose functions
 
 # In JavaScript (app.js)
-await eel.add_task("My task")();  // Works!
+await eel.add_habit("My habit")();  // Works!
 ```
 
 ### Import Order Matters
@@ -142,9 +130,8 @@ await eel.add_task("My task")();  // Works!
 **Correct Order**:
 ```python
 # 1. Import modules with @eel.expose
-import todo
+import habits
 import goals
-import categories
 import analytics
 
 # 2. THEN initialize Eel
@@ -192,13 +179,13 @@ That's it! Eel automatically makes it available.
 You can test modules independently:
 
 ```python
-# test_todo.py
-from todo import add_task, get_tasks
+# test_habits.py
+from habits import add_habit, get_habits
 
 # Test without running the full app
-task = add_task("Test task")
-tasks = get_tasks()
-print(tasks)
+habit = add_habit("Test habit")
+habits = get_habits()
+print(habits)
 ```
 
 ## Common Patterns
@@ -209,12 +196,12 @@ print(tasks)
 
 ```python
 # In any module
-from data_storage import load_tasks, save_tasks
+from data_storage import load_habits, save_habits
 
 def my_function():
-    tasks = load_tasks()  # Get data
-    # ... modify tasks ...
-    save_tasks(tasks)     # Save data
+    habits = load_habits()  # Get data
+    # ... modify habits ...
+    save_habits(habits)     # Save data
 ```
 
 ### Module Dependencies
@@ -223,30 +210,26 @@ def my_function():
 analytics.py
     └── depends on: data_storage.py
 
-todo.py
+habits.py
     └── depends on: data_storage.py
 
 goals.py
-    └── depends on: data_storage.py
-
-categories.py
-    └── depends on: data_storage.py
+    └── depends on: data_storage.py, habits.py
 
 main.py
-    └── depends on: todo.py, goals.py, categories.py, analytics.py
+    └── depends on: habits.py, goals.py, analytics.py
 ```
 
 ## Migration Notes
 
-The old `main.py` has been split into:
+The application has evolved from a to-do list to a habit tracker:
 - **Data operations** → `data_storage.py`
-- **Task functions** → `todo.py`
+- **Habit functions** → `habits.py` (formerly `todo.py`)
 - **Goal functions** → `goals.py`
-- **Category functions** → `categories.py`
-- **Analytics functions** → `analytics.py`
+- **Analytics functions** → `analytics.py` (includes time analytics)
 - **Startup code** → `main.py` (simplified)
 
-**No changes needed in JavaScript!** All function names remain the same.
+**Categories have been removed** - all organization is now done through goals.
 
 ## Best Practices
 

@@ -13,6 +13,7 @@ ENV/
 tasks.json
 goals.json
 categories.json
+habits.json
 
 # Build artifacts (PyInstaller)
 build/

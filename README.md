@@ -1,26 +1,27 @@
-# ToDo
+# ToDo - Habit Tracker
 
-A beautiful desktop application for managing your tasks and goals, built with Python (Eel) and modern web technologies.
+A beautiful desktop application for tracking habits and goals, built with Python (Eel) and modern web technologies.
 
 ## 📚 Learning Resources
 
-This repository includes comprehensive educational documentation:
+This repository includes comprehensive documentation:
 
-- **[LEARNING_GUIDE.md](LEARNING_GUIDE.md)**: Complete tutorial teaching you how to code through this project
-- **[CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md)**: Line-by-line code explanations for every file
+- **[MODULE_STRUCTURE.md](MODULE_STRUCTURE.md)**: Detailed explanation of the modular architecture
 
-Perfect for beginners learning Python, JavaScript, HTML, CSS, and desktop app development!
+Perfect for learning Python, JavaScript, HTML, CSS, and desktop app development!
 
 ## Features
 
 - ✨ **Modern UI**: Beautiful gradient design with smooth animations
-- 📝 **Task Management**: Add, edit, delete, and complete tasks
-- 🎯 **Priority Levels**: Organize tasks by priority (High, Medium, Low)
-- 📅 **Due Dates**: Set and track due dates with overdue indicators
-- 🏷️ **Categories**: Organize tasks by category
-- 🔍 **Search & Filter**: Quickly find tasks by searching or filtering
-- 💾 **Local Storage**: All data is saved locally in `tasks.json`
-- ✅ **Smart Sorting**: Tasks are automatically sorted by completion status, priority, and due date
+- 📝 **Habit Tracking**: Add, edit, delete, and check in habits
+- 🎯 **Priority Levels**: Organize habits by priority (Now, Next, Later, Today, Someday)
+- ⏱️ **Time Tracking**: Optional time tracking for habits (e.g., workouts, reading)
+- 🔥 **Streaks**: Track your habit streaks and consistency
+- 📊 **Analytics**: Comprehensive analytics including time analytics with visualizations
+- 🎯 **Goals**: Link habits to goals and track progress
+- 🔍 **Search & Filter**: Quickly find habits by searching or filtering
+- 💾 **Local Storage**: All data is saved locally in Application Support folder
+- ✅ **Smart Sorting**: Habits are automatically sorted by goal and priority
 
 ## Installation
 
@@ -78,30 +79,40 @@ python build_app.py
 ```
 
 3. **Find your app**:
-   - Location: `dist/IntelligentToDoList/IntelligentToDoList.app`
+   - Location: `dist/ToDo/ToDo.app` or automatically copied to `/Applications/ToDo.app`
    - Double-click to run!
 
-For detailed packaging instructions, see [PACKAGING_GUIDE.md](PACKAGING_GUIDE.md).
-
 The application will open in a desktop window where you can:
-- Add new tasks with title, description, priority, due date, and category
-- Search tasks using the search bar
-- Filter tasks by priority or category
-- Toggle task completion
-- Edit or delete existing tasks
-- View completed tasks (toggle with the "Show Completed" button)
+- Add new habits with title, description, priority, frequency, and optional goal
+- Enable time tracking for habits that require it
+- Check in habits daily and optionally record time spent
+- Search habits using the search bar
+- Filter habits by priority, frequency, or goal
+- View habit streaks and 7-day history
+- Edit or delete existing habits
+- Create and manage goals
+- View comprehensive analytics including time analytics
 
 ## Data Storage
 
-All tasks are stored locally in `tasks.json` in the application directory. Your data persists between sessions.
+All habits and goals are stored locally in your Application Support folder:
+- `habits.json` - All habit data including check-ins and time tracking
+- `goals.json` - All goal data
+
+Your data persists between sessions and app rebuilds.
 
 ## Project Structure
 
 ```
 intelligent_to-do_list/
-├── main.py              # Python backend with Eel
+├── main.py              # Application entry point
+├── habits.py            # Habit management functions
+├── goals.py             # Goal management functions
+├── analytics.py         # Analytics and statistics
+├── data_storage.py      # File I/O operations
+├── build_app.py         # Build script for creating .app
 ├── requirements.txt     # Python dependencies
-├── tasks.json          # Local data storage (created automatically)
+├── app_icon.icns        # Application icon
 └── web/
     ├── index.html      # Main HTML file
     ├── style.css       # Styling

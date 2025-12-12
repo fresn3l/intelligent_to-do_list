@@ -1,7 +1,7 @@
 """
 Data Storage Module
 
-This module handles all file I/O operations for tasks, goals, and categories.
+This module handles all file I/O operations for habits and goals.
 It provides a centralized way to load and save data to JSON files.
 
 Benefits of this module:
@@ -9,6 +9,7 @@ Benefits of this module:
 - Consistent error handling across all data operations
 - Easy to change storage mechanism (e.g., switch to database) later
 - Reusable functions for all modules
+- Data stored in Application Support folder for persistence across app rebuilds
 """
 
 import json
@@ -49,47 +50,7 @@ DATA_DIR = get_data_directory()
 # Data file paths - stored in persistent location
 HABITS_FILE = str(DATA_DIR / 'habits.json')
 GOALS_FILE = str(DATA_DIR / 'goals.json')
-CATEGORIES_FILE = str(DATA_DIR / 'categories.json')
-# Keep DATA_FILE for backward compatibility during migration
-DATA_FILE = str(DATA_DIR / 'tasks.json')
-
-# ============================================
-# TASK DATA OPERATIONS
-# ============================================
-
-def load_tasks() -> List[Dict]:
-    """
-    Load tasks from local JSON file.
-    
-    Returns:
-        List[Dict]: List of task dictionaries. Returns empty list if file doesn't exist or is invalid.
-    
-    Error Handling:
-        - Returns empty list if file doesn't exist (first run)
-        - Returns empty list if file is corrupted (invalid JSON)
-        - Returns empty list if file can't be read (permissions, etc.)
-    """
-    if os.path.exists(DATA_FILE):
-        try:
-            with open(DATA_FILE, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
-    return []
-
-def save_tasks(tasks: List[Dict]):
-    """
-    Save tasks to local JSON file.
-    
-    Args:
-        tasks: List of task dictionaries to save
-    
-    Side Effects:
-        - Overwrites existing tasks.json file
-        - Creates file if it doesn't exist
-    """
-    with open(DATA_FILE, 'w') as f:
-        json.dump(tasks, f, indent=2)
+# Categories removed - using goals instead for organization
 
 # ============================================
 # HABIT DATA OPERATIONS
@@ -149,32 +110,5 @@ def save_goals(goals: List[Dict]):
     with open(GOALS_FILE, 'w') as f:
         json.dump(goals, f, indent=2)
 
-# ============================================
-# CATEGORY DATA OPERATIONS
-# ============================================
-
-def load_categories() -> List[str]:
-    """
-    Load categories from local JSON file.
-    
-    Returns:
-        List[str]: List of category names. Returns empty list if file doesn't exist or is invalid.
-    """
-    if os.path.exists(CATEGORIES_FILE):
-        try:
-            with open(CATEGORIES_FILE, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
-    return []
-
-def save_categories(categories: List[str]):
-    """
-    Save categories to local JSON file.
-    
-    Args:
-        categories: List of category names to save
-    """
-    with open(CATEGORIES_FILE, 'w') as f:
-        json.dump(categories, f, indent=2)
+# Categories removed - using goals instead for organization
 
