@@ -50,7 +50,7 @@ def check_dependencies():
     
     # Check if our modules can be imported
     try:
-        import todo
+        import habits  # Renamed from todo
         import goals
         import analytics
         import data_storage
@@ -95,7 +95,7 @@ def build_app():
         '--add-data=web:web',               # Include web folder (format: source:destination)
         '--hidden-import=eel',              # Ensure Eel is included
         '--hidden-import=setuptools',       # Ensure setuptools is included
-        '--hidden-import=todo',            # Include our custom modules
+        '--hidden-import=habits',          # Include our custom modules (renamed from todo)
         '--hidden-import=goals',
         '--hidden-import=analytics',
         '--hidden-import=data_storage',
