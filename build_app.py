@@ -1,7 +1,8 @@
 """
-Build Script for Creating Mac Application
+Build Script for Creating Habit Tracker Mac Application
 
-This script uses PyInstaller to create a standalone Mac .app bundle.
+This script builds the Habit Tracker app (not ToDo app).
+For building the ToDo app, use build_todo_app.py instead.
 
 Usage:
     python build_app.py

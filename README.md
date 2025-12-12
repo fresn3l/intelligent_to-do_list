@@ -75,11 +75,14 @@ pip install pyinstaller
 
 2. **Build the app**:
 ```bash
-python build_app.py
+python build_app.py  # Builds Habit Tracker app
+# OR
+python build_todo_app.py  # Builds ToDo app (if you have a separate ToDo codebase)
 ```
 
 3. **Find your app**:
-   - Location: `dist/ToDo/ToDo.app` or automatically copied to `/Applications/ToDo.app`
+   - Habit Tracker: `dist/HabitTracker/HabitTracker.app` or `/Applications/HabitTracker.app`
+   - ToDo: `dist/ToDo/ToDo.app` or `/Applications/ToDo.app`
    - Double-click to run!
 
 The application will open in a desktop window where you can:
