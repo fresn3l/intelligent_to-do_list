@@ -1,19 +1,69 @@
 """
 Data Storage Module
 
-This module handles all file I/O operations for tasks, habits, goals, and categories.
-It provides a centralized way to load and save data to JSON files.
-Data is shared between the ToDo app and Habit Tracker app.
+This module provides a centralized, robust data persistence layer for the ToDo
+application. It handles all file I/O operations for tasks, habits, and goals
+with proper error handling, file locking, and atomic writes.
 
-Benefits of this module:
-- Single source of truth for data file paths
-- Consistent error handling across all data operations
-- Easy to change storage mechanism (e.g., switch to database) later
-- Reusable functions for all modules
-- Data stored in Application Support folder for persistence across app rebuilds
-- Shared storage between ToDo app (tasks) and Habit Tracker app (habits)
-- Goals are shared between both apps
-- File locking prevents data corruption when both apps access shared files
+ARCHITECTURE:
+-------------
+This module implements a file-based storage system using JSON files. It provides
+a clean abstraction layer that other modules use for data persistence, making it
+easy to switch storage mechanisms (e.g., to a database) in the future.
+
+KEY FEATURES:
+-------------
+1. **Centralized Storage**: Single source of truth for all data file paths
+2. **Cross-App Compatibility**: Shared storage between ToDo app and Habit Tracker app
+3. **Data Persistence**: Files stored in Application Support folder (survives app rebuilds)
+4. **File Locking**: Prevents data corruption when multiple processes access files
+5. **Atomic Writes**: Writes to temp file then renames (prevents partial writes)
+6. **Error Handling**: Graceful handling of missing/corrupted files
+7. **Platform Support**: Works on macOS, Windows, and Linux
+
+STORAGE LOCATIONS:
+------------------
+All data is stored in platform-specific Application Support directories:
+- macOS: ~/Library/Application Support/ToDo/
+- Windows: ~/AppData/Local/ToDo/
+- Linux: ~/.local/share/ToDo/
+
+DATA FILES:
+-----------
+- tasks.json: All tasks from ToDo app
+- habits.json: All habits from Habit Tracker app
+- goals.json: Shared goals between both apps
+
+FILE LOCKING:
+-------------
+Uses fcntl (Unix/macOS) for file locking to prevent race conditions when:
+- Both apps access shared files simultaneously
+- Multiple instances of the same app run concurrently
+- File operations overlap
+
+ATOMIC WRITES:
+--------------
+All write operations use atomic writes:
+1. Write to temporary file (.tmp extension)
+2. Acquire exclusive lock during write
+3. Rename temp file to final filename (atomic operation)
+4. Release lock
+
+This ensures data integrity even if the app crashes during a write operation.
+
+ERROR HANDLING:
+---------------
+- Missing files: Returns empty list/dict (assumes first run)
+- Corrupted JSON: Returns empty list/dict (logs error, doesn't crash)
+- Permission errors: Logs error, returns empty data
+- Lock timeouts: Handled gracefully (may need retry logic in future)
+
+USAGE:
+------
+Other modules import and use these functions:
+    from data_storage import load_tasks, save_tasks, load_goals, save_goals
+
+This keeps the storage implementation details hidden from business logic.
 """
 
 import json
@@ -29,25 +79,62 @@ from pathlib import Path
 # Store data in user's Application Support folder for persistence across rebuilds
 # This ensures data is not lost when rebuilding the app
 
-def get_data_directory():
+def get_data_directory() -> Path:
     """
-    Get the directory where data files should be stored.
-    Uses Application Support folder for persistent storage across app rebuilds.
+    Get the platform-specific directory where data files should be stored.
+    
+    This function determines the appropriate Application Support directory
+    based on the operating system. The directory is created if it doesn't
+    exist, ensuring data persistence across app rebuilds and updates.
+    
+    Platform Detection:
+        - Uses sys.platform for reliable OS detection
+        - 'win32': Windows (all versions)
+        - 'darwin': macOS
+        - Others: Linux and Unix-like systems
+    
+    Directory Structure:
+        The returned directory is the base for all application data:
+        - tasks.json: ToDo app tasks
+        - habits.json: Habit Tracker app habits
+        - goals.json: Shared goals between apps
+        - Journal/: Journal entries (subdirectory)
     
     Returns:
-        Path: Directory path for data files
+        Path: Path object pointing to the data directory
+            - macOS: ~/Library/Application Support/ToDo/
+            - Windows: ~/AppData/Local/ToDo/
+            - Linux: ~/.local/share/ToDo/
+    
+    Side Effects:
+        - Creates the directory structure if it doesn't exist
+        - Uses mkdir(parents=True) to create all parent directories
+    
+    Example:
+        >>> data_dir = get_data_directory()
+        >>> print(data_dir)
+        /Users/username/Library/Application Support/ToDo
     """
     import sys
-    # Use sys.platform for more reliable platform detection
+    # Use sys.platform for more reliable platform detection than os.name
+    # sys.platform is more specific (e.g., 'darwin' for macOS vs 'posix')
+    
     if sys.platform == 'win32':  # Windows
+        # Windows uses AppData\Local for application data
         data_dir = Path.home() / 'AppData' / 'Local' / 'ToDo'
     elif sys.platform == 'darwin':  # macOS
+        # macOS uses Library/Application Support for application data
+        # This is the standard location for user data that persists
         data_dir = Path.home() / 'Library' / 'Application Support' / 'ToDo'
-    else:  # Linux and others
+    else:  # Linux and other Unix-like systems
+        # Linux uses .local/share following XDG Base Directory Specification
         data_dir = Path.home() / '.local' / 'share' / 'ToDo'
     
     # Create directory if it doesn't exist
+    # parents=True creates all parent directories if needed
+    # exist_ok=True prevents error if directory already exists
     data_dir.mkdir(parents=True, exist_ok=True)
+    
     return data_dir
 
 # Get persistent data directory
