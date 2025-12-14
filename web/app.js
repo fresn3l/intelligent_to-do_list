@@ -1,26 +1,110 @@
+/* ============================================
+   TO-DO APPLICATION - MAIN JAVASCRIPT FILE
+   ============================================
+   
+   This file contains all frontend JavaScript logic for the ToDo application.
+   It handles:
+   - Task management (CRUD operations)
+   - Goal management (CRUD operations)
+   - Journal functionality with timer
+   - Analytics display
+   - UI interactions and event handling
+   - Data synchronization with Python backend via Eel
+   
+   Architecture:
+   - State management: Global variables for tasks, goals, filters
+   - Event-driven: Uses event delegation for dynamic content
+   - Async operations: All backend calls are async/await
+   - Modular functions: Each feature has dedicated functions
+   ============================================ */
+
+/* ============================================
+   GLOBAL STATE VARIABLES
+   ============================================ */
+
+/**
+ * Array of all tasks loaded from the backend
+ * Each task object contains: id, title, description, priority, due_date, 
+ * completed, goal_id, created_at, completed_at
+ */
 let tasks = [];
+
+/**
+ * Array of all goals loaded from the backend
+ * Each goal object contains: id, title, description, created_at
+ */
 let goals = [];
+
+/**
+ * Boolean flag to control visibility of completed tasks
+ * false = hide completed tasks, true = show completed tasks
+ */
 let showCompleted = false;
+
+/**
+ * Filter object containing current filter settings
+ * Used to filter tasks by priority, goal, and search text
+ */
 let currentFilter = {
-    priority: '',
-    goal: '',
-    search: ''
+    priority: '',  // Filter by priority: 'Now', 'Next', 'Later', or '' for all
+    goal: '',      // Filter by goal ID or '' for all goals
+    search: ''     // Search text to filter task titles/descriptions
 };
 
-// Initialize the app
+/* ============================================
+   APPLICATION INITIALIZATION
+   ============================================ */
+
+/**
+ * Initialize the application
+ * This is the main entry point called when the page loads.
+ * 
+ * Flow:
+ * 1. Show loading indicators
+ * 2. Load initial data (tasks and goals) from backend
+ * 3. Set up event listeners for user interactions
+ * 4. Initialize tab switching functionality
+ * 5. Initialize journal functionality
+ * 6. Hide loading indicators
+ * 7. Animate elements for smooth entrance
+ * 
+ * @async
+ */
 async function init() {
-    // Add loading state
+    // Show loading state to provide user feedback
     showLoadingState();
+    
+    // Load data from backend in parallel for better performance
     await Promise.all([loadTasks(), loadGoals()]);
+    
+    // Set up all event listeners for user interactions
     setupEventListeners();
+    
+    // Initialize tab navigation system
     setupTabs();
+    
+    // Initialize journal timer and entry functionality
     setupJournal();
+    
+    // Hide loading indicators now that data is loaded
     hideLoadingState();
-    // Add smooth entrance animations
+    
+    // Add smooth entrance animations for better UX
     animateElements();
 }
 
-// Show loading state
+/* ============================================
+   UI UTILITY FUNCTIONS
+   ============================================ */
+
+/**
+ * Display loading indicators in specified containers
+ * Shows a spinner and "Loading..." text while data is being fetched
+ * 
+ * Containers updated:
+ * - tasksContainer: Shows loading state for tasks
+ * - goalsContainer: Shows loading state for goals
+ */
 function showLoadingState() {
     const containers = ['tasksContainer', 'goalsContainer'];
     containers.forEach(id => {
@@ -31,67 +115,163 @@ function showLoadingState() {
     });
 }
 
-// Hide loading state
+/**
+ * Hide loading indicators
+ * Loading state is automatically replaced when actual content is rendered
+ * This function exists for consistency and potential future use
+ */
 function hideLoadingState() {
-    // Loading state will be replaced by actual content
+    // Loading state will be replaced by actual content when render functions are called
 }
 
-// Animate elements on load
+/**
+ * Animate elements on page load for smooth entrance effect
+ * 
+ * Animation sequence:
+ * 1. Elements start invisible and slightly below their final position
+ * 2. Each element fades in and slides up with a staggered delay
+ * 3. Creates a cascading entrance effect
+ * 
+ * Elements animated:
+ * - .task-item: Individual task cards
+ * - .goal-item: Individual goal cards
+ * - .category-header: Category/group headers
+ * 
+ * @param {number} index - Delay multiplier (50ms per index for stagger effect)
+ */
 function animateElements() {
     const elements = document.querySelectorAll('.task-item, .goal-item, .category-header');
     elements.forEach((el, index) => {
+        // Start invisible and below final position
         el.style.opacity = '0';
         el.style.transform = 'translateY(20px)';
+        
+        // Animate after a staggered delay
         setTimeout(() => {
             el.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
             el.style.opacity = '1';
             el.style.transform = 'translateY(0)';
-        }, index * 50);
+        }, index * 50); // 50ms delay between each element
     });
 }
 
-// Add ripple effect to buttons
+/**
+ * Add ripple effect to buttons for visual feedback
+ * 
+ * Creates a Material Design-style ripple animation when button is clicked.
+ * The ripple expands from the click point and fades out.
+ * 
+ * @param {HTMLElement} button - The button element to add ripple effect to
+ * 
+ * How it works:
+ * 1. Creates a span element for the ripple
+ * 2. Calculates size based on button dimensions (ensures full coverage)
+ * 3. Positions ripple at click coordinates
+ * 4. Adds ripple class for styling
+ * 5. Removes ripple after animation completes (600ms)
+ */
 function addRippleEffect(button) {
     button.addEventListener('click', function(e) {
+        // Create ripple element
         const ripple = document.createElement('span');
+        
+        // Get button position and dimensions
         const rect = this.getBoundingClientRect();
+        
+        // Calculate ripple size (largest dimension to ensure full coverage)
         const size = Math.max(rect.width, rect.height);
+        
+        // Calculate position relative to button (centered on click point)
         const x = e.clientX - rect.left - size / 2;
         const y = e.clientY - rect.top - size / 2;
         
+        // Set ripple dimensions and position
         ripple.style.width = ripple.style.height = size + 'px';
         ripple.style.left = x + 'px';
         ripple.style.top = y + 'px';
         ripple.classList.add('ripple');
         
+        // Add ripple to button
         this.appendChild(ripple);
         
+        // Remove ripple after animation completes
         setTimeout(() => {
             ripple.remove();
         }, 600);
     });
 }
 
-// Load data from Python backend
+/* ============================================
+   DATA LOADING FUNCTIONS
+   ============================================ */
+
+/**
+ * Load all tasks from the Python backend
+ * 
+ * Flow:
+ * 1. Call Python backend function get_tasks() via Eel
+ * 2. Store tasks in global tasks array
+ * 3. Re-render tasks in the UI
+ * 4. Update goal filter dropdown (tasks may have changed goal assignments)
+ * 5. Update goal select dropdown (for task creation form)
+ * 
+ * Error handling:
+ * - Logs errors to console for debugging
+ * - UI will show empty state if tasks fail to load
+ * 
+ * @async
+ * @throws {Error} If backend call fails
+ */
 async function loadTasks() {
     try {
+        // Fetch tasks from Python backend via Eel
         tasks = await eel.get_tasks()();
+        
+        // Update UI with loaded tasks
         renderTasks();
+        
+        // Update filter dropdowns (tasks may have new goal assignments)
         updateGoalFilter();
         updateGoalSelect();
     } catch (error) {
         console.error('Error loading tasks:', error);
+        // Error is logged but doesn't crash the app
+        // UI will show empty state or previous data
     }
 }
 
+/**
+ * Load all goals from the Python backend
+ * 
+ * Flow:
+ * 1. Call Python backend function get_goals() via Eel
+ * 2. Store goals in global goals array
+ * 3. Re-render goals in the UI
+ * 4. Update goal select dropdown (for task creation form)
+ * 5. Update goal filter dropdown (for task filtering)
+ * 
+ * Error handling:
+ * - Logs errors to console for debugging
+ * - UI will show empty state if goals fail to load
+ * 
+ * @async
+ * @throws {Error} If backend call fails
+ */
 async function loadGoals() {
     try {
+        // Fetch goals from Python backend via Eel
         goals = await eel.get_goals()();
+        
+        // Update UI with loaded goals
         renderGoals();
-        updateGoalSelect();
-        updateGoalFilter();
+        
+        // Update dropdowns that depend on goals
+        updateGoalSelect();  // For task creation form
+        updateGoalFilter();  // For task filtering
     } catch (error) {
         console.error('Error loading goals:', error);
+        // Error is logged but doesn't crash the app
+        // UI will show empty state or previous data
     }
 }
 
