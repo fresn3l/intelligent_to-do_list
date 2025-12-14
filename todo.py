@@ -163,30 +163,52 @@ def add_task(title: str, description: str = "", priority: str = "Next",
 @eel.expose
 def update_task(task_id: int, title: str = None, description: str = None,
                 priority: str = None, due_date: str = None,
-                goal_id: int = None):
+                goal_id: int = None) -> Optional[Dict]:
     """
-    Update an existing task.
+    Update an existing task with new values.
+    
+    This function allows partial updates - only the fields provided (not None)
+    will be updated. This is useful for editing tasks where you might only
+    want to change one field (e.g., just the title or just the priority).
     
     Args:
-        task_id: ID of task to update
-        title: New title (optional - only updates if provided)
-        description: New description (optional)
-        priority: New priority (optional)
-        due_date: New due date (optional)
-        goal_id: New goal ID (optional)
+        task_id: ID of task to update (required)
+        title: New title (optional) - Only updates if not None
+        description: New description (optional) - Only updates if not None
+        priority: New priority (optional) - Only updates if not None
+        due_date: New due date in ISO format (optional) - Only updates if not None
+        goal_id: New goal ID (optional) - Only updates if not None.
+                Pass None explicitly to unlink from goal
     
     Returns:
-        Dict: Updated task dictionary, or None if task not found
+        Optional[Dict]: Updated task dictionary if found, None if task doesn't exist
     
     Side Effects:
-        - Updates task in tasks.json
+        - Loads tasks from storage
+        - Updates matching task in memory
+        - Saves updated task list to tasks.json
+    
+    Update Strategy:
+        Uses partial update pattern - only fields that are not None are updated.
+        This allows flexible updates without requiring all fields.
+    
+    Example:
+        # Update only the title
+        >>> update_task(1, title="New title")
+        
+        # Update multiple fields
+        >>> update_task(1, title="New title", priority="Now", goal_id=2)
+        
+        # Unlink from goal (set goal_id to None)
+        >>> update_task(1, goal_id=None)
     """
     tasks = load_tasks()
     
-    # Find task by ID
+    # Find task by ID (linear search - fine for small task lists)
     for task in tasks:
         if task["id"] == task_id:
             # Update only provided fields (None means "don't change")
+            # This allows partial updates - only change what's provided
             if title is not None:
                 task["title"] = title
             if description is not None:
@@ -196,76 +218,120 @@ def update_task(task_id: int, title: str = None, description: str = None,
             if due_date is not None:
                 task["due_date"] = due_date
             if goal_id is not None:
+                # Note: goal_id can be explicitly set to None to unlink from goal
                 task["goal_id"] = goal_id
             
-            # Save updated tasks
+            # Save updated tasks to persistent storage
             save_tasks(tasks)
             return task
     
-    # Task not found
+    # Task not found - return None to indicate failure
     return None
 
 @eel.expose
-def toggle_task(task_id: int):
+def toggle_task(task_id: int) -> Optional[Dict]:
     """
-    Toggle task completion status.
+    Toggle task completion status (complete ↔ incomplete).
+    
+    This function switches a task between completed and incomplete states.
+    When completing a task, it records the completion timestamp.
+    When uncompleting a task, it clears the completion timestamp.
     
     Args:
-        task_id: ID of task to toggle
+        task_id: ID of task to toggle (required)
     
     Returns:
-        Dict: Updated task dictionary, or None if task not found
+        Optional[Dict]: Updated task dictionary if found, None if task doesn't exist
     
     Side Effects:
-        - Updates task.completed in tasks.json
-        - Sets/clears completed_at timestamp
+        - Loads tasks from storage
+        - Toggles task.completed boolean
+        - Sets completed_at timestamp when completing
+        - Clears completed_at timestamp when uncompleting
+        - Saves updated task list to tasks.json
+    
+    Behavior:
+        - If task is incomplete → marks as completed, sets completed_at timestamp
+        - If task is completed → marks as incomplete, clears completed_at timestamp
+    
+    Example:
+        # Complete a task
+        >>> toggle_task(1)
+        {"id": 1, "completed": True, "completed_at": "2024-12-10T15:30:00", ...}
+        
+        # Uncomplete the same task
+        >>> toggle_task(1)
+        {"id": 1, "completed": False, "completed_at": None, ...}
     """
     tasks = load_tasks()
     
     # Find task by ID
     for task in tasks:
         if task["id"] == task_id:
-            # Toggle completion status
+            # Toggle completion status using boolean NOT operator
             task["completed"] = not task["completed"]
             
-            # Update completion timestamp
+            # Update completion timestamp based on new state
             if task["completed"]:
+                # Task is now completed - record when it was completed
                 task["completed_at"] = datetime.now().isoformat()
             else:
+                # Task is now incomplete - clear completion timestamp
                 task["completed_at"] = None
             
-            # Save updated tasks
+            # Save updated tasks to persistent storage
             save_tasks(tasks)
             return task
     
-    # Task not found
+    # Task not found - return None to indicate failure
     return None
 
 @eel.expose
-def delete_task(task_id: int):
+def delete_task(task_id: int) -> bool:
     """
-    Delete a task from the system.
+    Delete a task from the system permanently.
+    
+    This function removes a task from storage. The deletion is permanent
+    and cannot be undone. The task ID is not reused (to maintain referential
+    integrity with any external references).
     
     Args:
-        task_id: ID of task to delete
+        task_id: ID of task to delete (required)
     
     Returns:
-        bool: True if task was deleted, False otherwise
+        bool: True if task was successfully deleted, False if task not found
     
     Side Effects:
-        - Removes task from tasks.json
+        - Loads tasks from storage
+        - Removes task with matching ID from the list
+        - Saves updated task list to tasks.json (only if task was found)
+    
+    Deletion Strategy:
+        Uses list comprehension to filter out the task with matching ID.
+        Compares list length before and after to determine if deletion occurred.
+    
+    Example:
+        >>> delete_task(1)
+        True  # Task deleted successfully
+        
+        >>> delete_task(999)
+        False  # Task not found
     """
     tasks = load_tasks()
     
-    # Filter out the task with matching ID
+    # Store original count to check if deletion occurred
     original_count = len(tasks)
+    
+    # Filter out the task with matching ID using list comprehension
+    # This creates a new list without the task to delete
     tasks = [task for task in tasks if task["id"] != task_id]
     
-    # Only save if a task was actually removed
+    # Only save if a task was actually removed (list length decreased)
     if len(tasks) < original_count:
-        save_tasks(tasks)
-        return True
+        save_tasks(tasks)  # Persist changes to storage
+        return True  # Deletion successful
     
+    # Task not found - no changes made
     return False
 
 # ============================================
