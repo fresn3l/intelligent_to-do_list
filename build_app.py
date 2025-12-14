@@ -141,6 +141,7 @@ def build_app():
         '--hidden-import=todo',            # Include our custom modules
         '--hidden-import=goals',
         '--hidden-import=analytics',
+        '--hidden-import=journal',
         '--hidden-import=data_storage',
         '--collect-all=eel',                # Collect all Eel data files
         '--osx-bundle-identifier=com.todo.app',  # Mac bundle identifier
